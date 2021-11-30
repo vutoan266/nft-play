@@ -4,6 +4,7 @@ contract ERC721 {
     mapping(address => uint256) internal _balances;
     mapping(uint256 => address) internal _owners;
     mapping(address => mapping(address => bool)) private _operatorApprovals;
+    mapping(uint256 => address) private _tokenApprovals;
 
     /// @dev This emits when ownership of any NFT changes by any mechanism.
     ///  This event emits when NFTs are created (`from` == 0) and destroyed
@@ -49,7 +50,7 @@ contract ERC721 {
     ///  about them do throw.
     /// @param _tokenId The identifier for an NFT
     /// @return The address of the owner of the NFT
-    function ownerOf(uint256 _tokenId) external view returns (address) {
+    function ownerOf(uint256 _tokenId) public view returns (address) {
         address owner = _owners[_tokenId];
         require(owner != address(0), "Token ID does not exist");
         return _owners[_tokenId];
@@ -71,8 +72,15 @@ contract ERC721 {
         address _from,
         address _to,
         uint256 _tokenId,
-        bytes data
-    ) external payable;
+        bytes memory data
+    ) public payable {
+        transferFrom(_from, _to, _tokenId);
+        require(_checkOnERC721Received(), "Receiver is not implemented");
+    }
+
+    function _checkOnERC721Received() private pure returns (bool) {
+        return true;
+    }
 
     /// @notice Transfers the ownership of an NFT from one address to another address
     /// @dev This works identically to the other function with an extra data parameter,
@@ -84,7 +92,9 @@ contract ERC721 {
         address _from,
         address _to,
         uint256 _tokenId
-    ) external payable;
+    ) external payable {
+        safeTransferFrom(_from, _to, _tokenId, "");
+    }
 
     /// @notice Transfer ownership of an NFT -- THE CALLER IS RESPONSIBLE
     ///  TO CONFIRM THAT `_to` IS CAPABLE OF RECEIVING NFTS OR ELSE
@@ -100,7 +110,38 @@ contract ERC721 {
         address _from,
         address _to,
         uint256 _tokenId
-    ) external payable;
+    ) public payable {
+        address owner = ownerOf(_tokenId);
+
+        require(
+            msg.sender == owner ||
+                getApproved(_tokenId) == msg.sender ||
+                isApprovedForAll(owner, msg.sender),
+            "Msg.sender is not the owner or approved for transfer"
+        );
+        require(owner == _from, "From address is not the owner");
+        require(_to != address(0), "To address is the zero address");
+        require(_owners[_tokenId] != address(0), "Token ID does not exist");
+
+        approve(address(0), _tokenId);
+        _balances[_from] -= 1;
+        _balances[_to] += 1;
+        _owners[_tokenId] = _to;
+
+        emit Transfer(_from, _to, _tokenId);
+    }
+
+    /// @notice Query if an address is an authorized operator for another address
+    /// @param _owner The address that owns the NFTs
+    /// @param _operator The address that acts on behalf of the owner
+    /// @return True if `_operator` is an approved operator for `_owner`, false otherwise
+    function isApprovedForAll(address _owner, address _operator)
+        public
+        view
+        returns (bool)
+    {
+        return _operatorApprovals[_owner][_operator];
+    }
 
     /// @notice Change or reaffirm the approved address for an NFT
     /// @dev The zero address indicates there is no approved address.
@@ -108,7 +149,15 @@ contract ERC721 {
     ///  operator of the current owner.
     /// @param _approved The new approved NFT controller
     /// @param _tokenId The NFT to approve
-    function approve(address _approved, uint256 _tokenId) external payable;
+    function approve(address _approved, uint256 _tokenId) public payable {
+        address owner = ownerOf(_tokenId);
+        require(
+            msg.sender == owner || isApprovedForAll(owner, msg.sender),
+            "msg.sender is not the owner or the approved operator"
+        );
+        _tokenApprovals[_tokenId] = _approved;
+        emit Approval(owner, _approved, _tokenId);
+    }
 
     /// @notice Enable or disable approval for a third party ("operator") to manage
     ///  all of `msg.sender`'s assets
@@ -125,17 +174,18 @@ contract ERC721 {
     /// @dev Throws if `_tokenId` is not a valid NFT.
     /// @param _tokenId The NFT to find the approved address for
     /// @return The approved address for this NFT, or the zero address if there is none
-    function getApproved(uint256 _tokenId) external view returns (address);
+    function getApproved(uint256 _tokenId) public view returns (address) {
+        require(_owners[_tokenId] != address(0), "Token ID does not exist");
+        return _tokenApprovals[_tokenId];
+    }
 
-    /// @notice Query if an address is an authorized operator for another address
-    /// @param _owner The address that owns the NFTs
-    /// @param _operator The address that acts on behalf of the owner
-    /// @return True if `_operator` is an approved operator for `_owner`, false otherwise
-    function isApprovedForAll(address _owner, address _operator)
-        external
-        view
+    // EIP165 proposal: query if a contract implements another interface
+    function supportInterface(bytes4 _interfaceId)
+        public
+        pure
+        virtual
         returns (bool)
     {
-        return _operatorApprovals[_owner][_operator];
+        return _interfaceId == 0x80ac58cd;
     }
 }
