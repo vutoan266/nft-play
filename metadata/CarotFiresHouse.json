@@ -1,0 +1,27 @@
+{
+  "name": "Carot",
+  "description": "Carot fires house",
+  "image": "https://ipfs.io/ipfs/QmPdxWDrdTNJVyCGw2rp4YQvaeqVmafZCjQqNBTdLdSyHs",
+  "attributes": [
+    {
+      "trait_type": "iq",
+      "value": 5,
+      "max_value": 10
+    },
+    {
+      "trait_type": "loyal",
+      "value": 2,
+      "max_value": 10
+    },
+    {
+      "trait_type": "humorous",
+      "value": 4,
+      "max_value": 10
+    },
+    {
+      "trait_type": "damage",
+      "value": 6,
+      "max_value": 10
+    }
+  ]
+}
